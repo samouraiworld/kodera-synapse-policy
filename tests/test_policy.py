@@ -61,6 +61,8 @@ def test_registers_every_callback_it_relies_on():
     assert set(api.callbacks) == {
         "user_may_create_room",
         "user_may_invite",
+        "user_may_send_3pid_invite",
+        "user_may_create_room_alias",
         "user_may_publish_room",
         "check_event_for_spam",
     }
@@ -137,6 +139,22 @@ def test_agent_invites_into_any_room():
     assert run(policy().user_may_invite(AGENT, BOB, "!channel")) == ALLOWED
 
 
+def test_member_cannot_invite_by_email_or_phone():
+    assert run(policy().user_may_send_3pid_invite(ALICE, "email", "x@example.org", "!r")) == FORBIDDEN
+
+
+def test_agent_may_invite_by_email():
+    assert run(policy().user_may_send_3pid_invite(AGENT, "email", "x@example.org", "!r")) == ALLOWED
+
+
+def test_member_cannot_create_a_room_alias():
+    assert run(policy().user_may_create_room_alias(ALICE, "#general:acme-sa.kodera.io")) == FORBIDDEN
+
+
+def test_agent_may_create_a_room_alias():
+    assert run(policy().user_may_create_room_alias(AGENT, "#general:acme-sa.kodera.io")) == ALLOWED
+
+
 @pytest.mark.parametrize("user", [ALICE, AGENT])
 def test_nobody_publishes_to_the_directory(user):
     assert run(policy().user_may_publish_room(user, "!r")) == FORBIDDEN
@@ -158,6 +176,7 @@ def test_nobody_turns_on_encryption(sender):
         event("m.room.aliases"),
         event("m.room.server_acl", allow=["*"]),
         event("m.room.tombstone", replacement_room="!new"),
+        event("m.room.third_party_invite", display_name="x"),
         event("m.space.child"),
         event("m.space.parent"),
     ],

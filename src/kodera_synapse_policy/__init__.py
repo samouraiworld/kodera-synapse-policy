@@ -6,6 +6,7 @@ client a member signs in with, so this module refuses what would route around th
 
 - room creation, except a direct message between two local users, and except by the agent;
 - invites, except the one a member's direct message is created with, and except by the agent;
+- invites by e-mail or phone (third-party identifiers) and room aliases, except by the agent;
 - publishing any room to the directory;
 - end-to-end encryption in any room;
 - turning a room public: a join rule other than ``invite``, a world-readable history,
@@ -28,6 +29,7 @@ LOCKED_STATE = frozenset(
         "m.room.aliases",
         "m.room.canonical_alias",
         "m.room.server_acl",
+        "m.room.third_party_invite",
         "m.room.tombstone",
         "m.space.child",
         "m.space.parent",
@@ -42,6 +44,8 @@ class KoderaPolicy:
         api.register_spam_checker_callbacks(
             user_may_create_room=self.user_may_create_room,
             user_may_invite=self.user_may_invite,
+            user_may_send_3pid_invite=self.user_may_send_3pid_invite,
+            user_may_create_room_alias=self.user_may_create_room_alias,
             user_may_publish_room=self.user_may_publish_room,
             check_event_for_spam=self.check_event_for_spam,
         )
@@ -93,6 +97,14 @@ class KoderaPolicy:
         if create is None or create.sender != inviter or others or not self._api.is_mine(invitee):
             return Codes.FORBIDDEN
         return NOT_SPAM
+
+    async def user_may_send_3pid_invite(
+        self, inviter: str, medium: str, address: str, room_id: str
+    ) -> Any:
+        return NOT_SPAM if inviter == self._agent else Codes.FORBIDDEN
+
+    async def user_may_create_room_alias(self, user_id: str, room_alias: Any) -> Any:
+        return NOT_SPAM if user_id == self._agent else Codes.FORBIDDEN
 
     async def user_may_publish_room(self, user_id: str, room_id: str) -> Any:
         return Codes.FORBIDDEN
