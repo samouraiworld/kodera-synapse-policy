@@ -1,6 +1,6 @@
 # kodera-synapse-policy
 
-Status: in development, isolated. No public repository yet: the owner authorises publication.
+Status: published under AGPL-3.0-or-later (owner authorised publication on 2026-10-22). Changes land by pull request.
 
 A Synapse module that keeps a Kodera instance's rooms under its control plane's policy (Core ADR-0018).
 
