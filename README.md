@@ -50,6 +50,13 @@ WITHOUT_MODULE=1 bash tests/integration/run.sh
 - **Integration test.** It runs the module inside the pinned Synapse v1.163.0 in Docker, and drives it over the client API as a third-party client would. This covers the invite inside `/createRoom`, the state a direct-message preset creates, refused e-mail invites and aliases, and the agent's own channel.
 - **Negative control.** Run without the module, the same scenario must fail (11 checks fail, exit 1).
 
+## Continuous integration
+
+`ci-ok` is the one required check. It passes only when every job passes:
+- **Unit tests and mutations**, with the test dependencies pinned by hash (`requirements-test.txt`).
+- **The real-Synapse test**, with the image pinned by digest. The negative control runs first and must fail.
+- **The attribution check** on files, commit messages, the branch name, and the pull request title and body. Each check first proves it can fail.
+
 ## Licence
 
 AGPL-3.0-or-later, like Synapse ([LICENSE](LICENSE)).
