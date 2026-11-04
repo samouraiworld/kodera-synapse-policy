@@ -46,9 +46,13 @@ for _ in $(seq 1 90); do
 done
 curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null || { docker logs "$NAME" | tail -30; exit 2; }
 
-for user in kodera-agent alice bob carol; do
-  docker exec "$NAME" register_new_matrix_user -u "$user" -p "pw-$user-123" --no-admin \
+# The agent is a server admin, as Fleet registers it: Synapse then skips user_may_create_room for
+# it, so only check_event_allowed stands between it and an encrypted room. Members are not.
+register() {
+  docker exec "$NAME" register_new_matrix_user -u "$1" -p "pw-$1-123" "$2" \
     -k "$SECRET" http://localhost:8008 >/dev/null
-done
+}
+register kodera-agent -a
+for user in alice bob carol; do register "$user" --no-admin; done
 
 python3 "$HERE/tests/integration/scenario.py" "$PORT"

@@ -23,6 +23,9 @@ class FakeApi:
     def register_spam_checker_callbacks(self, **callbacks):
         self.callbacks.update(callbacks)
 
+    def register_third_party_rules_callbacks(self, **callbacks):
+        self.callbacks.update(callbacks)
+
     def is_mine(self, user_id):
         return user_id.endswith(f":{SERVER}")
 
@@ -65,6 +68,7 @@ def test_registers_every_callback_it_relies_on():
         "user_may_create_room_alias",
         "user_may_publish_room",
         "check_event_for_spam",
+        "check_event_allowed",
     }
 
 
@@ -96,7 +100,7 @@ def test_member_creates_a_direct_message():
         dm_request(room_alias_name="general"),
         dm_request(visibility="public"),
         dm_request(preset="public_chat"),
-        dm_request(initial_state=[{"type": "m.room.encryption", "content": {}}]),
+        dm_request(initial_state=[{"type": "m.room.history_visibility", "content": {"history_visibility": "shared"}}]),
         dm_request(power_level_content_override={"invite": 0}),
         dm_request(creation_content={"type": "m.space"}),
     ],
@@ -163,6 +167,29 @@ def test_nobody_publishes_to_the_directory(user):
 @pytest.mark.parametrize("sender", [ALICE, AGENT])
 def test_nobody_turns_on_encryption(sender):
     assert run(policy().check_event_for_spam(event("m.room.encryption", sender))) == FORBIDDEN
+
+
+@pytest.mark.parametrize("creator", [AGENT, ALICE])
+def test_nobody_creates_an_encrypted_room(creator):
+    encrypted = {"type": "m.room.encryption", "state_key": "", "content": {"algorithm": "m.megolm.v1.aes-sha2"}}
+    request = dm_request(initial_state=[encrypted]) if creator == ALICE else {"initial_state": [encrypted]}
+    assert run(policy().user_may_create_room(creator, request)) == FORBIDDEN
+
+
+@pytest.mark.parametrize("sender", [ALICE, AGENT])
+def test_no_event_turns_on_encryption(sender):
+    # The path Synapse's server admins take too: initial state, forced encryption, upgrades.
+    assert run(policy().check_event_allowed(event("m.room.encryption", sender), {})) == (False, None)
+
+
+@pytest.mark.parametrize("kind", ["m.room.message", "m.room.join_rules", "m.room.member"])
+def test_rules_allow_every_other_event(kind):
+    assert run(policy().check_event_allowed(event(kind, AGENT), {})) == (True, None)
+
+
+def test_agent_creates_a_room_with_other_initial_state():
+    request = {"initial_state": [{"type": "m.room.join_rules", "state_key": "", "content": {"join_rule": "invite"}}]}
+    assert run(policy().user_may_create_room(AGENT, request)) == ALLOWED
 
 
 @pytest.mark.parametrize(
