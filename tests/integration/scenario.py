@@ -89,7 +89,21 @@ check("member cannot create a room alias", status, 403)
 status, _ = call("PUT", f"/directory/list/room/{dm_id}", alice, {"visibility": "public"})
 check("member cannot publish a room to the directory", status, 403)
 
-status, channel = call("POST", "/createRoom", agent, {"preset": "private_chat", "name": "general"})
+# The power levels Core's tenant agent gives a channel room (tenant_agent/channels.py): every
+# state change is the agent's, its policy event included; members post at 0.
+CHANNEL_POWER = {
+    "users_default": 0,
+    "events_default": 0,
+    "state_default": 100,
+    "invite": 100,
+    "kick": 100,
+    "ban": 100,
+    "redact": 50,
+    "events": {"m.reaction": 0, "m.room.redaction": 0, "m.room.encryption": 100, "io.kodera.room.policy": 100},
+}
+status, channel = call(
+    "POST", "/createRoom", agent, {"preset": "private_chat", "name": "general", "power_level_content_override": CHANNEL_POWER}
+)
 check("agent creates a channel room", status, 200)
 channel_id = channel.get("room_id", "!missing")
 status, _ = call("POST", f"/rooms/{channel_id}/invite", agent, {"user_id": ALICE})
@@ -98,6 +112,10 @@ status, _ = call("POST", f"/rooms/{channel_id}/join", alice)
 check("the member joins the channel", status, 200)
 status, _ = call("POST", f"/rooms/{channel_id}/invite", alice, {"user_id": CAROL})
 check("member cannot invite into a channel", status, 403)
+status, _ = call("PUT", f"/rooms/{channel_id}/state/io.kodera.room.policy/", alice, {"version": 1, "kind": "text"})
+check("member cannot write the channel's policy (power levels)", status, 403)
+status, _ = call("PUT", f"/rooms/{channel_id}/state/io.kodera.room.policy/", agent, {"version": 1, "kind": "text"})
+check("the agent writes the channel's policy", status, 200)
 status, _ = call("PUT", f"/rooms/{channel_id}/state/m.room.encryption/", agent, MEGOLM)
 check("not even the agent turns on encryption", status, 403)
 status, _ = call(
@@ -106,7 +124,7 @@ status, _ = call(
     agent,
     {"preset": "private_chat", "initial_state": [{"type": "m.room.encryption", "state_key": "", "content": MEGOLM}]},
 )
-check("not even the agent creates an encrypted room", status, 403)
+check("not even the agent, a server admin, creates an encrypted room", status, 403)
 status, _ = call("PUT", f"/rooms/{channel_id}/state/m.room.join_rules/", agent, {"join_rule": "invite"})
 check("the agent changes channel state", status, 200)
 

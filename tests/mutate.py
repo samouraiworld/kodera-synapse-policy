@@ -29,6 +29,8 @@ MUTANTS = [
     ("agent may encrypt", 'if event.type == "m.room.encryption":\n            return Codes.FORBIDDEN\n        if event.sender == self._agent:\n            return NOT_SPAM', 'if event.sender == self._agent:\n            return NOT_SPAM\n        if event.type == "m.room.encryption":\n            return Codes.FORBIDDEN', "test_nobody_turns_on_encryption"),
     ("agent creates encrypted rooms", "if room_config is not None and _asks_for_encryption(room_config):", "if False:", "test_nobody_creates_an_encrypted_room"),
     ("any initial state is encryption", 'state.get("type") == "m.room.encryption"', 'state.get("type") is not None', "test_agent_creates_a_room_with_other_initial_state"),
+    ("rules allow encryption", 'return event.type != "m.room.encryption", None', "return True, None", "test_no_event_turns_on_encryption"),
+    ("rules refuse everything", 'return event.type != "m.room.encryption", None', "return False, None", "test_rules_allow_every_other_event"),
     ("join rule open", 'content.get("join_rule") != "invite"', "False", "test_member_cannot_open_a_room"),
     ("world readable open", '== "world_readable"', '== "never"', "test_member_cannot_open_a_room"),
     ("aliases open", "event.type in LOCKED_STATE\n            or", "", "test_member_cannot_open_a_room"),
