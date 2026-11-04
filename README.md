@@ -60,3 +60,7 @@ WITHOUT_MODULE=1 bash tests/integration/run.sh
 ## Licence
 
 AGPL-3.0-or-later, like Synapse ([LICENSE](LICENSE)).
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report a vulnerability privately to security@samourai.coop ([SECURITY.md](SECURITY.md)).
