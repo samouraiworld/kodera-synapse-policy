@@ -8,7 +8,7 @@ A Synapse module that keeps a Kodera instance's rooms under its control plane's 
 
 | Callback | Refuses |
 |---|---|
-| `user_may_create_room` | every room creation, except a direct message between two local users, and except by the agent |
+| `user_may_create_room` | every room creation with `m.room.encryption` in its initial state, the agent's included (a room's initial state never reaches `check_event_for_spam`); every other creation, except a direct message between two local users, and except by the agent |
 | `user_may_invite` | every invite, except the one a member's new direct message is created with, and except by the agent |
 | `user_may_send_3pid_invite`, `user_may_create_room_alias` | invites by e-mail or phone, and room aliases, except by the agent |
 | `user_may_publish_room` | publishing any room to the directory |

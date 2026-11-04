@@ -96,7 +96,7 @@ def test_member_creates_a_direct_message():
         dm_request(room_alias_name="general"),
         dm_request(visibility="public"),
         dm_request(preset="public_chat"),
-        dm_request(initial_state=[{"type": "m.room.encryption", "content": {}}]),
+        dm_request(initial_state=[{"type": "m.room.history_visibility", "content": {"history_visibility": "shared"}}]),
         dm_request(power_level_content_override={"invite": 0}),
         dm_request(creation_content={"type": "m.space"}),
     ],
@@ -163,6 +163,18 @@ def test_nobody_publishes_to_the_directory(user):
 @pytest.mark.parametrize("sender", [ALICE, AGENT])
 def test_nobody_turns_on_encryption(sender):
     assert run(policy().check_event_for_spam(event("m.room.encryption", sender))) == FORBIDDEN
+
+
+@pytest.mark.parametrize("creator", [AGENT, ALICE])
+def test_nobody_creates_an_encrypted_room(creator):
+    encrypted = {"type": "m.room.encryption", "state_key": "", "content": {"algorithm": "m.megolm.v1.aes-sha2"}}
+    request = dm_request(initial_state=[encrypted]) if creator == ALICE else {"initial_state": [encrypted]}
+    assert run(policy().user_may_create_room(creator, request)) == FORBIDDEN
+
+
+def test_agent_creates_a_room_with_other_initial_state():
+    request = {"initial_state": [{"type": "m.room.join_rules", "state_key": "", "content": {"join_rule": "invite"}}]}
+    assert run(policy().user_may_create_room(AGENT, request)) == ALLOWED
 
 
 @pytest.mark.parametrize(

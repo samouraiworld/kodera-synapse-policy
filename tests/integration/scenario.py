@@ -100,6 +100,13 @@ status, _ = call("POST", f"/rooms/{channel_id}/invite", alice, {"user_id": CAROL
 check("member cannot invite into a channel", status, 403)
 status, _ = call("PUT", f"/rooms/{channel_id}/state/m.room.encryption/", agent, MEGOLM)
 check("not even the agent turns on encryption", status, 403)
+status, _ = call(
+    "POST",
+    "/createRoom",
+    agent,
+    {"preset": "private_chat", "initial_state": [{"type": "m.room.encryption", "state_key": "", "content": MEGOLM}]},
+)
+check("not even the agent creates an encrypted room", status, 403)
 status, _ = call("PUT", f"/rooms/{channel_id}/state/m.room.join_rules/", agent, {"join_rule": "invite"})
 check("the agent changes channel state", status, 200)
 

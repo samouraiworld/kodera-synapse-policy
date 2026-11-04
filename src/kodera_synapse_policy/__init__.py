@@ -8,7 +8,7 @@ client a member signs in with, so this module refuses what would route around th
 - invites, except the one a member's direct message is created with, and except by the agent;
 - invites by e-mail or phone (third-party identifiers) and room aliases, except by the agent;
 - publishing any room to the directory;
-- end-to-end encryption in any room;
+- end-to-end encryption in any room, from its creation on, for the agent too;
 - turning a room public: a join rule other than ``invite``, a world-readable history,
   aliases, server ACLs, room upgrades and space links, unless the agent sends them.
 
@@ -60,6 +60,10 @@ class KoderaPolicy:
     async def user_may_create_room(
         self, user_id: str, room_config: dict[str, Any] | None = None
     ) -> Any:
+        # A room's initial state never reaches check_event_for_spam, so encryption asked for at
+        # creation is refused here, the agent's included.
+        if room_config is not None and _asks_for_encryption(room_config):
+            return Codes.FORBIDDEN
         if user_id == self._agent:
             return NOT_SPAM
         # Synapse before 1.132 passes no room_config: nothing tells a direct message apart.
@@ -127,3 +131,10 @@ class KoderaPolicy:
         ):
             return Codes.FORBIDDEN
         return NOT_SPAM
+
+
+def _asks_for_encryption(config: dict[str, Any]) -> bool:
+    initial_state = config.get("initial_state")
+    if not isinstance(initial_state, list):
+        return False
+    return any(isinstance(state, dict) and state.get("type") == "m.room.encryption" for state in initial_state)
