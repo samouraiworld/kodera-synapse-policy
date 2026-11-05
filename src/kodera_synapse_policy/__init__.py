@@ -127,10 +127,11 @@ class KoderaPolicy:
         return event.type not in ENCRYPTION, None
 
     async def check_event_for_spam(self, event: Any) -> Any:
+        # Synapse runs this, not check_event_allowed, on events from other servers.
+        if event.type in ENCRYPTION:
+            return Codes.FORBIDDEN
         if not event.is_state():
             return NOT_SPAM
-        if event.type == "m.room.encryption":
-            return Codes.FORBIDDEN
         if event.sender == self._agent:
             return NOT_SPAM
         content = event.content

@@ -197,7 +197,7 @@ def ciphertext(sender, room, state):
     )
 
 
-@pytest.mark.parametrize(
+CIPHERTEXT_CASES = pytest.mark.parametrize(
     "encrypted",
     [
         ciphertext(ALICE, "!channel", state=False),
@@ -208,10 +208,19 @@ def ciphertext(sender, room, state):
     ],
     ids=["member-timeline", "agent-timeline", "agent-state", "member-timeline-in-a-dm", "member-state-in-a-dm"],
 )
+
+
+@CIPHERTEXT_CASES
 def test_no_event_carries_ciphertext(encrypted):
     # A client can post ciphertext in a room where encryption is off, with keys sent by to-device
     # message; refusing m.room.encryption alone would let it through.
     assert run(policy().check_event_allowed(encrypted, {})) == (False, None)
+
+
+@CIPHERTEXT_CASES
+def test_no_federated_event_carries_ciphertext(encrypted):
+    # Synapse checks events from other servers with check_event_for_spam, not check_event_allowed.
+    assert run(policy().check_event_for_spam(encrypted)) == FORBIDDEN
 
 
 @pytest.mark.parametrize("kind", ["m.room.message", "m.room.join_rules", "m.room.member"])

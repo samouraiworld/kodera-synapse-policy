@@ -13,7 +13,7 @@ A Synapse module that keeps a Kodera instance's rooms under its control plane's 
 | `user_may_send_3pid_invite`, `user_may_create_room_alias` | invites by e-mail or phone, and room aliases, except by the agent |
 | `user_may_publish_room` | publishing any room to the directory |
 | `check_event_allowed` (third-party rules) | `m.room.encryption` and `m.room.encrypted` in any event Synapse creates, with no exemption. Synapse skips `user_may_create_room` for a server admin, and the agent's account is one, so this is what holds for the agent's own room creations, for encryption a server setting would force on, and for the state an upgrade copies. `m.room.encrypted` is ciphertext: a client can post it in a room where encryption is off, with the keys shared by to-device message, so it is refused as a timeline event and as state, in channels and direct messages |
-| `check_event_for_spam` | `m.room.encryption` from anyone. From anyone but the agent: a join rule other than `invite`, a world-readable history, aliases, third-party invites, server ACLs, room upgrades and space links |
+| `check_event_for_spam` | `m.room.encryption` and `m.room.encrypted` from anyone, as timeline or state: Synapse (v1.163.0) runs this callback, not `check_event_allowed`, on events from other servers. From anyone but the agent: a join rule other than `invite`, a world-readable history, aliases, third-party invites, server ACLs, room upgrades and space links |
 
 **To-device messages are not room events**, and Synapse (v1.163.0) offers a module no callback for them. A client can still send encrypted to-device messages, but without `m.room.encrypted` no room carries ciphertext.
 
