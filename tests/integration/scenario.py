@@ -11,6 +11,15 @@ import urllib.request
 BASE = f"http://127.0.0.1:{sys.argv[1]}/_matrix/client/v3"
 ALICE, BOB, CAROL = "@alice:it.local", "@bob:it.local", "@carol:it.local"
 MEGOLM = {"algorithm": "m.megolm.v1.aes-sha2"}
+# What a client posts in a room once it has shared a Megolm session by to-device message. Synapse
+# does not need m.room.encryption in the room to accept it.
+CIPHERTEXT = {
+    **MEGOLM,
+    "ciphertext": "AwgAEnACgAkLmt6qF84IK++J7UDH2Za1YVchHyprqTqsg",
+    "device_id": "RJYKSTBOIE",
+    "sender_key": "IlRMeOPX2e0MurIyfWEucYBRVOEEUMrOHqn/8mLqMjA",
+    "session_id": "X3lUlvLELLYxeTx4yOVu6UDpasGEVO0Jbu+QFnm0cKQ",
+}
 failures = 0
 
 
@@ -70,6 +79,17 @@ status, _ = call("POST", f"/rooms/{dm_id}/join", bob)
 check("the invited member joins the direct message", status, 200)
 status, _ = call("PUT", f"/rooms/{dm_id}/send/m.room.message/t1", bob, {"msgtype": "m.text", "body": "hi"})
 check("members post in a direct message", status, 200)
+status, _ = call("PUT", f"/rooms/{dm_id}/send/m.room.encrypted/c1", bob, CIPHERTEXT)
+check("member cannot post ciphertext in a DM", status, 403)
+# Both members of a trusted_private_chat DM hold power 100, so only the module refuses this.
+status, _ = call("PUT", f"/rooms/{dm_id}/state/m.room.encrypted/", alice, CIPHERTEXT)
+check("member cannot send ciphertext as DM state", status, 403)
+status, page = call("GET", f"/rooms/{dm_id}/messages?dir=b&limit=100", alice)
+check(
+    "no ciphertext reached the DM's timeline",
+    (status, sum(e.get("type") == "m.room.encrypted" for e in page.get("chunk", []))),
+    (200, 0),
+)
 status, _ = call("POST", f"/rooms/{dm_id}/invite", alice, {"user_id": CAROL})
 check("member cannot invite a third person into a DM", status, 403)
 status, _ = call("PUT", f"/rooms/{dm_id}/state/m.room.join_rules/", alice, {"join_rule": "public"})
@@ -110,6 +130,14 @@ status, _ = call("POST", f"/rooms/{channel_id}/invite", agent, {"user_id": ALICE
 check("agent invites a member into the channel", status, 200)
 status, _ = call("POST", f"/rooms/{channel_id}/join", alice)
 check("the member joins the channel", status, 200)
+status, _ = call("PUT", f"/rooms/{channel_id}/send/m.room.message/t2", alice, {"msgtype": "m.text", "body": "hi"})
+check("members post in a channel", status, 200)
+status, _ = call("PUT", f"/rooms/{channel_id}/send/m.room.encrypted/c2", alice, CIPHERTEXT)
+check("member cannot post ciphertext in a channel", status, 403)
+status, _ = call("PUT", f"/rooms/{channel_id}/send/m.room.encrypted/c3", agent, CIPHERTEXT)
+check("not even the agent posts ciphertext", status, 403)
+status, _ = call("PUT", f"/rooms/{channel_id}/state/m.room.encrypted/", agent, CIPHERTEXT)
+check("not even the agent sends ciphertext as state", status, 403)
 status, _ = call("POST", f"/rooms/{channel_id}/invite", alice, {"user_id": CAROL})
 check("member cannot invite into a channel", status, 403)
 status, _ = call("PUT", f"/rooms/{channel_id}/state/io.kodera.room.policy/", alice, {"version": 1, "kind": "text"})

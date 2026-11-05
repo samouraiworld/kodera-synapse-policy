@@ -9,7 +9,8 @@ client a member signs in with, so this module refuses what would route around th
 - invites by e-mail or phone (third-party identifiers) and room aliases, except by the agent;
 - publishing any room to the directory;
 - end-to-end encryption in any room, from its creation on, for the agent too, also when the
-  agent's account is a server admin, which Synapse exempts from the room-creation check;
+  agent's account is a server admin, which Synapse exempts from the room-creation check: both
+  turning it on and ciphertext itself, which a client can post without turning it on;
 - turning a room public: a join rule other than ``invite``, a world-readable history,
   aliases, server ACLs, room upgrades and space links, unless the agent sends them.
 
@@ -36,6 +37,10 @@ LOCKED_STATE = frozenset(
         "m.space.parent",
     }
 )
+# Events that put end-to-end encryption in a room: the state that turns it on, and ciphertext. A
+# client can post ``m.room.encrypted`` in a room where encryption is off, with the keys shared by
+# to-device message, so refusing the state event alone would not keep a room in the clear.
+ENCRYPTION = frozenset({"m.room.encryption", "m.room.encrypted"})
 
 
 class KoderaPolicy:
@@ -117,8 +122,9 @@ class KoderaPolicy:
 
     async def check_event_allowed(self, event: Any, state_events: Any) -> tuple[bool, dict | None]:
         # Synapse asks this of every event it creates, with no admin exemption: a room's initial
-        # state, encryption a server setting forces on at creation, and the state an upgrade copies.
-        return event.type != "m.room.encryption", None
+        # state, encryption a server setting forces on at creation, the state an upgrade copies,
+        # and every timeline event, ciphertext included.
+        return event.type not in ENCRYPTION, None
 
     async def check_event_for_spam(self, event: Any) -> Any:
         if not event.is_state():

@@ -182,6 +182,38 @@ def test_no_event_turns_on_encryption(sender):
     assert run(policy().check_event_allowed(event("m.room.encryption", sender), {})) == (False, None)
 
 
+MEGOLM_CIPHERTEXT = {
+    "algorithm": "m.megolm.v1.aes-sha2",
+    "ciphertext": "AwgAEnACgAkLmt6qF84IK++J7UDH2Za1YVchHyprqTqsg",
+    "device_id": "RJYKSTBOIE",
+    "sender_key": "IlRMeOPX2e0MurIyfWEucYBRVOEEUMrOHqn/8mLqMjA",
+    "session_id": "X3lUlvLELLYxeTx4yOVu6UDpasGEVO0Jbu+QFnm0cKQ",
+}
+
+
+def ciphertext(sender, room, state):
+    return SimpleNamespace(
+        type="m.room.encrypted", sender=sender, room_id=room, content=MEGOLM_CIPHERTEXT, is_state=lambda: state
+    )
+
+
+@pytest.mark.parametrize(
+    "encrypted",
+    [
+        ciphertext(ALICE, "!channel", state=False),
+        ciphertext(AGENT, "!channel", state=False),
+        ciphertext(AGENT, "!channel", state=True),
+        ciphertext(ALICE, "!dm", state=False),
+        ciphertext(ALICE, "!dm", state=True),
+    ],
+    ids=["member-timeline", "agent-timeline", "agent-state", "member-timeline-in-a-dm", "member-state-in-a-dm"],
+)
+def test_no_event_carries_ciphertext(encrypted):
+    # A client can post ciphertext in a room where encryption is off, with keys sent by to-device
+    # message; refusing m.room.encryption alone would let it through.
+    assert run(policy().check_event_allowed(encrypted, {})) == (False, None)
+
+
 @pytest.mark.parametrize("kind", ["m.room.message", "m.room.join_rules", "m.room.member"])
 def test_rules_allow_every_other_event(kind):
     assert run(policy().check_event_allowed(event(kind, AGENT), {})) == (True, None)
